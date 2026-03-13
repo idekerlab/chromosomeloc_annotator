@@ -156,16 +156,22 @@ def annotate_network(
     hier_node_map = get_node_id_to_name_map(hierarchy_net)
     for node_id, node_obj in net.get_nodes().items():
         chrom_count = Counter()
-        if 'HCX::members' not in node_obj['v']:
+        if 'HCX::members' in node_obj['v']:
+            members = node_obj['v']['HCX::members']
+        elif 'HCX::memberNames' in node_obj['v']:
+            members = node_obj['v']['HCX::memberNames'].split(',')
+        else:
             continue
-        members = node_obj['v']['HCX::members']
         interactome_net = get_node_interactome(node_obj, config)
         if interactome_net is not None:
             the_node_map = get_node_id_to_name_map(interactome_net)
         else:
             the_node_map = hier_node_map
         for member_id in members:
-            member_name = the_node_map.get(member_id)
+            if not isinstance(member_id, str):
+                member_name = member_id
+            else:
+                member_name = the_node_map.get(member_id)
             if member_name is None:
                 chrom_count["chrUn"] += 1
                 continue

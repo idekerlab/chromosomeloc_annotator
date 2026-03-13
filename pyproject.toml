@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chromloc-annotator"
+version = "0.1.0"
+description = "Annotate HCX hierarchy nodes with chromosome counts and pie style"
+authors = [
+    { name = "Cytoscape / Ideker Lab" }
+]
+readme = "README.rst"
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.8"
+
+dependencies = [
+    "ndex2>=3.6.0",
+    "requests>=2.28.0",
+]
+
+[project.scripts]
+cytoscape-chromloc = "chromloc.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+include = ["chromloc*"]
+
+[tool.setuptools.package-data]
+chromloc = ["non_alt_loci_set.json"]

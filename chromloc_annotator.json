@@ -1,0 +1,49 @@
+{
+  "dockerImage": "cytoscape-chromloc:latest",
+  "description": "Annotate HCX hierarchies with chromosome counts and pie styling",
+  "cyWebActions": [
+    "addNetworks"
+  ],
+  "version": "0.1.0",
+  "parameterFlagMap": {
+    "NDEx Server": "--ndex-server"
+  },
+  "parameters": [
+    {
+      "displayName": "NDEx Server",
+      "description": "NDEx server where interactome hierarchies are stored. Default is public NDEx server.",
+      "type": "text",
+      "valueList": null,
+      "defaultValue": "http://public.ndexbio.org",
+      "validationType": "string",
+      "columnTypeFilter": null,
+      "validationHelp": "Should be a URL starting with http:// or https://",
+      "validationRegex": "https?://.+",
+      "minValue": null,
+      "maxValue": null
+    }
+  ],
+  "cyWebMenuItem": {
+    "root": "Apps",
+    "path": [
+      {
+        "gravity": 0,
+        "name": "CytoContainer Chromosome Tools"
+      },
+      {
+        "gravity": 1,
+        "name": "HCX Chromosome Annotator"
+      }
+    ]
+  },
+  "serviceInputDefinition": {
+    "type": "network",
+    "scope": "all",
+    "inputColumns": null,
+    "inputNetwork": {
+      "model": "network",
+      "format": "cx2"
+    }
+  },
+  "name": "chromloc_annotator"
+}

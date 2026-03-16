@@ -14,7 +14,7 @@ license = { text = "BSD-3-Clause" }
 requires-python = ">=3.8"
 
 dependencies = [
-    "ndex2>=3.6.0",
+    "ndex2>=3.9.0",
     "requests>=2.28.0",
 ]
 

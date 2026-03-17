@@ -5,10 +5,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 import re
+import logging
 import requests
 from ndex2.cx2 import RawCX2NetworkFactory, CX2Network
 import ndex2.client
 
+
+logger = logging.getLogger(__name__)
 
 HUMAN_CHROMOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY", "chrM"]
 
@@ -68,7 +71,7 @@ def get_chromosome_map() -> Dict[str, str]:
             chrom = re.sub('[p|q].*$', '', entry['location'].split(' ')[0])
             if chrom.startswith("mito"):
                 chrom = "M"
-            elif chrom.startswith("reserved") or chrom.startswith("not"):
+            elif chrom.startswith("reserved") or chrom.startswith("not") or chrom.startswith('un'):
                 chrom = "Un"
         
         yield gene, f"chr{chrom}"
@@ -144,34 +147,45 @@ def annotate_network(
     config: Config,
     err_stream=sys.stderr,
 ) -> Any:
-    err_stream.write("@@PROGRESS 30\n")
     err_stream.write("@@MESSAGE Building chromosome map\n")
     chrom_map = dict(get_chromosome_map())
 
     chromosomes = sorted(set(chrom_map.values()))
 
-    err_stream.write("@PROGRESS 50\n")
-    err_stream.write("@@MESSAGE Annotating nodes\n")
+    err_stream.write("@PROGRESS 5\n")
+    num_nodes = len(net.get_nodes())
+    err_stream.write("@@MESSAGE Found {} nodes to annotate\n".format(num_nodes))
     hierarchy_net = get_hierarchy_interactome(net, config)
     hier_node_map = get_node_id_to_name_map(hierarchy_net)
+    incr_val = 80.0 / float(num_nodes)
+
+    prog_val = 5.0
+    intprog_val = 5
     for node_id, node_obj in net.get_nodes().items():
         chrom_count = Counter()
         if 'HCX::members' in node_obj['v']:
             members = node_obj['v']['HCX::members']
         elif 'HCX::memberNames' in node_obj['v']:
-            members = node_obj['v']['HCX::memberNames'].split(',')
+            mem_name_attr = node_obj['v']['HCX::memberNames']
+            if isinstance(mem_name_attr, str):
+                members = node_obj['v']['HCX::memberNames'].split(',')
+            else:
+                members = mem_name_attr
         else:
+            err_stream.write(f"Node {node_id} is missing both 'HCX::members' "
+                           "and 'HCX::memberNames' attributes, skipping "
+                           "chromosome annotation for this node.")
             continue
+
         interactome_net = get_node_interactome(node_obj, config)
         if interactome_net is not None:
             the_node_map = get_node_id_to_name_map(interactome_net)
         else:
             the_node_map = hier_node_map
         for member_id in members:
-            if not isinstance(member_id, str):
-                member_name = member_id
-            else:
-                member_name = the_node_map.get(member_id)
+            member_name = the_node_map.get(member_id)
+            if member_name is None:
+                member_name = member_id    
             if member_name is None:
                 chrom_count["chrUn"] += 1
                 continue
@@ -180,6 +194,7 @@ def annotate_network(
                 chrom_count[chrom] += 1
             else:
                 chrom_count["chrUn"] += 1
+            net.add_node_attribute(node_id, "chromosome_labels", chromosomes, datatype="list_of_string")
         # update chrom_counts for this node        
             for chrom in chromosomes:
                 if chrom in chrom_count:
@@ -187,12 +202,22 @@ def annotate_network(
                                            chrom_count[chrom], datatype='integer')
                 else:
                     net.add_node_attribute(node_id, f"{chrom}", 0, datatype='integer')
+        prog_val += incr_val
+        if int(prog_val) > intprog_val:
+            intprog_val = int(prog_val)
+            err_stream.write(f"@@PROGRESS {intprog_val}\n")
+            err_stream.flush()
 
         # err_stream.write('node: {}\n'.format(node_id) + ' chrom_count: {}\n'.format(chrom_count))
 
                         
     err_stream.write("@@PROGRESS 90\n")
     err_stream.write("@@MESSAGE Formatting updated network\n")
+    orig_name = net.get_name()
+    if orig_name is None:
+        orig_name = "Unnamed Network"
+    net.set_name(f"{orig_name} (chromosome annotated)")
+
     return [{
         "action": "addNetworks",
         "data": [net.to_cx2()]
